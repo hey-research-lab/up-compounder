@@ -7,6 +7,10 @@ on:
     - develop
   pull_request:
 
+env:
+  ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
+  FORK_BLOCK: 54276406
+
 jobs:
   test:
     strategy:
@@ -22,7 +26,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
         with:
-          version: nightly
+          version: stable
 
       - name: Run Forge build
         run: |
@@ -31,6 +35,5 @@ jobs:
         id: build
 
       - name: Run Forge tests
-        run: |
-          forge test -vvv --fork-url ${{ secrets.ETH_RPC_URL }}
+        run: forge test -vvv
         id: test

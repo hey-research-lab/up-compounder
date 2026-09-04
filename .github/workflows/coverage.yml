@@ -8,8 +8,8 @@ on:
   pull_request:
 
 env:
-  FOUNDRY_PROFILE: ci
-  ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+  ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
+  FORK_BLOCK: 54276406
 
 jobs:
   coverage:
