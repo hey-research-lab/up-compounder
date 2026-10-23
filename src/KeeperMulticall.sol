@@ -149,7 +149,10 @@ contract KeeperMulticall is Ownable2Step, CompounderLens {
         if (s.keeper != address(this)) return (false, Skip.NotDelegated, s);
         if (!s.active) return (false, Skip.Inactive, s);
         if (s.positionCount == 0) return (false, Skip.NoPositions, s);
-        if (s.pendingUp < minPendingUp || s.pendingUp < s.minUpToCompound) return (false, Skip.BelowThreshold, s);
+        // Count only what `compoundAll()` would actually claim: it skips disabled pools and every
+        // position below `minUpToCompound` on its own, but still reimburses the call.
+        uint256 up = compoundableUp(compounder);
+        if (up == 0 || up < minPendingUp) return (false, Skip.BelowThreshold, s);
         if (s.gasBalance < reimbursementFor(gasEstimate, gasPrice)) return (false, Skip.Unfunded, s);
         return (true, Skip.None, s);
     }

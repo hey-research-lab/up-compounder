@@ -32,6 +32,21 @@ contract CompounderLens {
         }
     }
 
+    /// @notice UP that `compoundAll()` would claim now: staked positions in enabled pools whose
+    ///         pending UP reaches the compounder's `minUpToCompound`. Positions `compoundAll()`
+    ///         skips are not counted.
+    function compoundableUp(address compounder) public view returns (uint256 total) {
+        IUserCompounder c = IUserCompounder(compounder);
+        uint256 minUp = c.minUpToCompound();
+        uint256[] memory ids = c.positions();
+        for (uint256 i = 0; i < ids.length; i++) {
+            IUserCompounder.PositionInfo memory p = c.getPositionInfo(ids[i]);
+            if (!p.staked || !registry.isPoolEnabled(p.pool)) continue;
+            uint256 e = c.earned(ids[i]);
+            if (e >= minUp) total += e;
+        }
+    }
+
     function positionsByPool(address compounder, address pool) external view returns (uint256[] memory list) {
         IUserCompounder c = IUserCompounder(compounder);
         uint256[] memory ids = c.positions();

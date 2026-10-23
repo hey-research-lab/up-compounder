@@ -162,6 +162,43 @@ contract KeeperTest is Setup {
         assertEq(uint256(reason), uint256(KeeperMulticall.Skip.NoPositions));
     }
 
+    function test_isCompoundable_skipsDisabledPool() public {
+        skip(1 days);
+        vm.prank(admin);
+        registry.disablePool(POOL_WETH_USDG);
+        assertGt(lens.pendingUp(address(c1)), 0, "still earning in the gauge");
+
+        // compoundAll() skips the disabled pool but the keeper would still be reimbursed
+        (bool ok, KeeperMulticall.Skip reason,) = keeperMulticall.isCompoundable(address(c1), 0.1 gwei, 1_500_000, 0);
+        assertFalse(ok);
+        assertEq(uint256(reason), uint256(KeeperMulticall.Skip.BelowThreshold));
+        assertEq(keeperMulticall.compoundableUp(address(c1)), 0);
+    }
+
+    function test_isCompoundable_appliesMinPerPosition() public {
+        (uint256 id3,) = mintInRange(user, POOL_WETH_USDG, 50, 1 ether, 2500e6);
+        depositPosition(c1, user, id3);
+        skip(1 days);
+        uint256 e1 = c1.earned(id1);
+        uint256 e3 = c1.earned(id3);
+        uint256 minUp = (e1 > e3 ? e1 : e3) + 1; // above each position, below their sum
+        assertLt(minUp, e1 + e3);
+        vm.prank(user);
+        c1.setMinUpToCompound(minUp);
+
+        (bool ok, KeeperMulticall.Skip reason,) = keeperMulticall.isCompoundable(address(c1), 0.1 gwei, 1_500_000, 0);
+        assertFalse(ok, "compoundAll() would skip both positions");
+        assertEq(uint256(reason), uint256(KeeperMulticall.Skip.BelowThreshold));
+
+        // and it really would: nothing is compounded, yet the call is reimbursed
+        vm.txGasPrice(0.1 gwei);
+        vm.prank(address(keeperMulticall));
+        c1.compoundAll();
+        assertEq(c1.getPositionInfo(id1).compoundCount, 0);
+        assertEq(c1.getPositionInfo(id3).compoundCount, 0);
+        assertGt(c1.totalGasReimbursed(), 0);
+    }
+
     function test_reimbursementFor() public view {
         // (gas + overhead) * price * 1.1
         uint256 r = keeperMulticall.reimbursementFor(1_000_000, 0.1 gwei);
