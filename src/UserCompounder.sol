@@ -424,9 +424,12 @@ contract UserCompounder is IUserCompounder, IERC721Receiver {
         uint128 expected = PositionMath.liquidityForAmounts(ctx.sqrtPriceX96, ctx.tickLower, ctx.tickUpper, bal0, bal1);
         if (expected == 0) return (0, 0, 0);
 
-        if (p.staked) _unstake(ctx.tokenId, p, ctx.gauge);
+        // Only a position that was staked goes back into the gauge. One the owner unstaked
+        // (emergencyUnstake, or decreaseLiquidity to zero) stays held until the owner calls restake.
+        bool wasStaked = p.staked;
+        if (wasStaked) _unstake(ctx.tokenId, p, ctx.gauge);
         (added, used0, used1) = _increaseWithSlippage(ctx, expected, bal0, bal1);
-        _restake(ctx.tokenId, p, ctx.gauge);
+        if (wasStaked) _restake(ctx.tokenId, p, ctx.gauge);
     }
 
     function _increaseWithSlippage(CompoundCtx memory ctx, uint128 expected, uint256 bal0, uint256 bal1)

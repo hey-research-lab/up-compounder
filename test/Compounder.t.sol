@@ -417,6 +417,25 @@ contract CompounderTest is Setup {
         c.restake(tokenId);
     }
 
+    function test_emergencyUnstake_staysUnstakedThroughCompound() public {
+        depositPosition(c, user, tokenId);
+        skip(1 hours);
+        vm.prank(user);
+        c.emergencyUnstake(tokenId);
+        assertFalse(c.getPositionInfo(tokenId).staked);
+
+        // leftover UP in the compounder (kept for the next compound, or sent by anyone)
+        fund(UP, address(c), 1 ether);
+        vm.prank(user);
+        c.setKeeper(user2);
+        vm.prank(user2);
+        c.compoundAll();
+
+        assertGt(positionLiquidity(tokenId), liq0, "dust still compounded");
+        assertFalse(c.getPositionInfo(tokenId).staked, "not put back into the gauge");
+        assertEq(nft.ownerOf(tokenId), address(c));
+    }
+
     /*//////////////////////////////////////////////////////////////
                               GAS & SWEEP
     //////////////////////////////////////////////////////////////*/
